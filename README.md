@@ -38,7 +38,15 @@ cd proj_drone_tello
 ```
 ```bash
 # Instale dependências
+sudo apt-get install portaudio19-dev
 pip install -r requirements.txt
+```  
+
+```bash
+# Instale o modelo de reconhecimento de áudio
+cd models
+wget https://alphacephei.com/vosk/models/vosk-model-pt-fb-v0.1.1-20220516_2113.zip
+unzip vosk-model-pt-fb-v0.1.1-20220516_2113.zip
 ```  
 
 ## **Uso**
