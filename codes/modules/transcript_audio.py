@@ -4,9 +4,10 @@ from vosk import Model, KaldiRecognizer
 import json
 import queue
 import time
+from audio_capture import record_audio
 
 # Configurações
-model_path = "models/vosk-model-pt-fb-v0.1.1-20220516_2113"
+model_path = "/home/henrique/projects/python/proj_drone_tello/models/vosk-model-pt-fb-v0.1.1-20220516_2113"
 sample_rate = 16000
 duration = 3  # Duração da gravação em segundos
 
@@ -30,7 +31,7 @@ def convert_audio_to_text() -> str:
     """
     # Gravação do áudio
     print("Gravando... (3 segundos)")
-    with sd.InputStream(callback=_callback, dtype=np.int16, channels=1, samplerate=sample_rate):
+    with sd.InputStream(callback=_callback, dtype=np.int16, channels=1, samplerate=sample_rate, device=17):
         start_time = time.time()
         end_time = start_time + duration
         audio_buffer = []

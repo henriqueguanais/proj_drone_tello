@@ -3,12 +3,15 @@ import time
 import cv2
 import modules.tello_control as tello_control
 import modules.chatbot as chatbot
+import modules.transcript_audio as transcript_audio
 from tello_zune import TelloZune
 
 def initialize_session() -> None:
     """
     Inicializa variáveis de sessão para drone, câmera e histórico do chatbot.
-    """
+    # """
+    if "user_input" not in st.session_state:
+        st.session_state.user_input = ""  # Inicializa corretamente
     if "tello" not in st.session_state:
         st.session_state.tello = TelloZune()
         st.session_state.command_log = tello_control.log_messages
@@ -86,6 +89,19 @@ def update_pace() -> None:
     """Atualiza tello_control.pace."""
     tello_control.pace = st.session_state.pace_input
 
+def gravar():
+    """Função de gravação com tratamento de erros"""
+    try:
+        with st.spinner("Gravando... (3 segundos)"):
+            texto = transcript_audio.convert_audio_to_text()
+            if texto:
+                st.session_state.user_input = texto
+                st.toast("Transcrição concluída!", icon="✅")
+            else:
+                st.warning("Nenhum áudio detectado")
+    except Exception as e:
+        st.error(f"Erro na gravação: {str(e)}")
+
 def render_text_input(text_input_placeholder) -> None:
     """
     Área de texto para comandos ao drone.
@@ -93,19 +109,42 @@ def render_text_input(text_input_placeholder) -> None:
         text_input_placeholder: Placeholder para o campo de entrada de texto.
     """
     with text_input_placeholder.container():
-        user_input = st.text_input("Envie um comando para o drone:", key="user_input")
-        if st.button("Enviar") and user_input:
-            #ret, frame = st.session_state.cap.read()
-            frame = st.session_state.tello.get_frame() # Por enquanto o frame é adquirido novamente
+        # 1. Processa primeiro os botões
+        col1, col2 = st.columns([1, 1])
+        gravar_pressed = False
+        enviar_pressed = False
+        
+        with col1:
+            gravar_pressed = st.button("Gravar", use_container_width=True)
+            
+        with col2:
+            enviar_pressed = st.button("Enviar", use_container_width=True)
+
+        # 2. Atualiza session_state ANTES de criar o input
+        if gravar_pressed:
+            gravar()
+            st.session_state.user_input = transcript_audio.convert_audio_to_text()
+
+        # 3. Cria o input usando session_state diretamente
+        user_input = st.text_input(
+            "Envie um comando para o drone:",
+            key="user_input",
+            value=st.session_state.get("user_input", "")  # Remove default implícito
+        )
+
+        # 4. Processa envio
+        if enviar_pressed and user_input:
+            frame = st.session_state.tello.get_frame()
             current_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             response, command = chatbot.run_ai(user_input, current_frame)
+            
             if command and chatbot.validate_command(command):
                 tello_control.process_ai_command(st.session_state.tello, command)
                 tello_control.log_messages.append(command)
 
-            # Atualiza última interação
             st.session_state.last_user = user_input
             st.session_state.last_ai = response
+            st.session_state.user_input = ""  # Limpa o input após envio
 
 def render_response(response_placeholder) -> None:
     """
@@ -124,7 +163,6 @@ def render_frame(frame_placeholder) -> None:
     Args:
         frame_placeholder: Placeholder para exibir o frame.
     """
-    #ret, frame = st.session_state.cap.read()
     frame = st.session_state.tello.get_frame()
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame = tello_control.moves(st.session_state.tello, frame)
@@ -138,3 +176,5 @@ def update_interface_values() -> None:
     st.session_state.temp_value.markdown(f"**{temph if temph is not None else 'N/A'}°C**")
     st.session_state.pres_value.markdown(f"**{pres if pres is not None else 'N/A'}hPa**")
     st.session_state.time_value.markdown(f"**{time_elapsed if time_elapsed is not None else 'N/A'}s**")
+
+# ... (restante do código de inicialização e loop principal permanece igual)
